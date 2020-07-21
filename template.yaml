@@ -10,15 +10,35 @@ Parameters:
 
 Globals:
   Function:
-    Runtime: nodejs8.10
+    Runtime: nodejs12.x
     Timeout: 180
     Tracing: Active
 
 Resources:
-  Hello:
+  ApiGatewayApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Sub ${Stage}
+
+  Greeting:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: hello.default
+      Events:
+        APIWithName:
+          Type: Api
+          Properties:
+            Path: /hello/byname/{name}
+            Method: get
+            RestApiId:
+              Ref: ApiGatewayApi
+        APIAnonymous:
+          Type: Api
+          Properties:
+            Path: /hello
+            Method: get
+            RestApiId:
+              Ref: ApiGatewayApi
+      Handler: hello.handler
       CodeUri: ./dist/hello
 
   ExampleTable:

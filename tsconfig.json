@@ -3,16 +3,13 @@
         "module": "commonjs",
         "esModuleInterop": true,
         "target": "es6",
-        "lib": [ "es2017" ],
+        "lib": ["es2017"],
+        "strict": true,
         "noImplicitAny": true,
         "moduleResolution": "node",
         "sourceMap": true,
-        "outDir": "dist",
+        "outDir": "dist"
     },
-    "include": [
-        "src/**/*",
-    ],
-    "exclude": [
-        "**/*.spec.*",
-    ]
+    "include": ["src/**/*", "dev/**/*"],
+    "exclude": ["**/*.test.*"]
 }

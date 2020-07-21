@@ -1,14 +1,11 @@
 # NodeJS
 node_modules
 dist
-
-# Python
-.venv
-__pycache__/
-
-# Editor
-.vscode
+# we will use yarn.lock instead
+package-lock.json
 
 # Litter
 *.log
 template.packaged.yaml
+.aws-sam
+.env
