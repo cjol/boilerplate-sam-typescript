@@ -54,7 +54,7 @@ This boilerplate is a development of
 It configures webpack to build small lambda functions, as opposed to zipping and
 uploading the entire codebase. I've made a few changes:
 
--   Update Typescript to a more recent version
+-   Update dependencies to a more recent version
 -   Add deploy script to create an S3 bucket for deployment
 -   Add deploy script to teardown the deployment
 -   Add deploy script to view deployed function logs
@@ -70,6 +70,7 @@ uploading the entire codebase. I've made a few changes:
 -   Switch from `npm` to `yarn`
 -   Format everything with `prettier` and move from tslint to eslint
 -   Migrate webpack config to typescript and add schema validation
+-   Add DynamoDB examples and support for dynamodb-local (see below)
 
 ## DynamoDB
 
