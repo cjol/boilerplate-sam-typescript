@@ -1,0 +1,10 @@
+{
+    "Greeting_0": {
+        "TABLE_NAME": "${STACK_NAME}-greetings-${STAGE}",
+        "DYNAMO_HOST": "http://dynamodb:8000"
+    },
+    "Greeting_1": {
+        "TABLE_NAME": "${STACK_NAME}-greetings-${STAGE}",
+        "DYNAMO_HOST": "http://dynamodb:8000"
+    }
+}

@@ -4,6 +4,35 @@ import * as t from 'io-ts';
 import { either } from 'fp-ts';
 import { pipe } from 'fp-ts/lib/function';
 
+function substituteVars(s: string) {
+    return s.replace(/\$\{([^}]+)\}/g, (orig, v) => {
+        switch (v) {
+            case 'ProjectName':
+                return process.env.STACK_NAME || '';
+            case 'Stage':
+                return process.env.STAGE || 'jest';
+        }
+        return orig;
+    });
+}
+
+const Subbable = new t.Type<string, string, unknown>(
+    'string',
+    (input: unknown): input is string =>
+        typeof input === 'string' ||
+        (typeof input === 'object' && input !== null && 'Fn::Sub' in input),
+    (input, context) => {
+        if (typeof input === 'string') return t.success(input);
+        if (typeof input === 'object' && input !== null && 'Fn::Sub' in input) {
+            const i = input as { 'Fn::Sub': unknown };
+            if (typeof i['Fn::Sub'] === 'string')
+                return t.success(substituteVars(i['Fn::Sub']));
+        }
+        return t.failure(input, context);
+    },
+    t.identity
+);
+
 const ServerlessFunction = t.type({
     Type: t.literal('AWS::Serverless::Function'),
     Properties: t.type({
@@ -13,6 +42,30 @@ const ServerlessFunction = t.type({
     }),
 });
 export type ServerlessFunctionTemplate = t.TypeOf<typeof ServerlessFunction>;
+
+const DynamoDBTable = t.type({
+    Type: t.literal('AWS::DynamoDB::Table'),
+    Properties: t.type({
+        TableName: Subbable,
+        AttributeDefinitions: t.array(
+            t.type({
+                AttributeName: t.string,
+                AttributeType: t.keyof({ S: null, N: null }),
+            })
+        ),
+        KeySchema: t.array(
+            t.type({
+                AttributeName: t.string,
+                KeyType: t.keyof({ HASH: null, RANGE: null }),
+            })
+        ),
+        ProvisionedThroughput: t.type({
+            ReadCapacityUnits: t.number,
+            WriteCapacityUnits: t.number,
+        }),
+    }),
+});
+export type DynamoDBTableTemplate = t.TypeOf<typeof DynamoDBTable>;
 
 const CloudFormationSchema = t.intersection([
     // optional properties
@@ -28,6 +81,7 @@ const CloudFormationSchema = t.intersection([
             t.string,
             t.union([
                 ServerlessFunction,
+                DynamoDBTable,
                 t.type({
                     Type: t.string,
                 }),
@@ -48,7 +102,6 @@ export function getTemplate(templatePath: string): CloudFormationTemplate {
     );
 
     if (either.isLeft(parseResult)) {
-        console.log(parseResult.left.map((e) => e.context));
         throw new Error('Unable to parse yaml');
     }
     return parseResult.right;

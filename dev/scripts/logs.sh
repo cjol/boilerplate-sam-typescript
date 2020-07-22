@@ -1,3 +1,3 @@
 sam logs \
 	--stack-name $STACK_NAME-${STAGE:-dev} \
-	-n $1
+	-n "$@"

@@ -23,9 +23,12 @@ the values of manually.
 
 ### Running Locally
 
+N.B. To propagate environment variables to the lambda containers, `envsubst`
+must be installed on your machine.
+
 -   Run `yarn dev` to watch for file changes and start a fast local server
 -   Run `yarn dev:clean` to remove any conflicting containers from a previous
-    run
+    session
 
 ## Deployment
 
@@ -67,3 +70,33 @@ uploading the entire codebase. I've made a few changes:
 -   Switch from `npm` to `yarn`
 -   Format everything with `prettier` and move from tslint to eslint
 -   Migrate webpack config to typescript and add schema validation
+
+## DynamoDB
+
+When creating tables in SAM we have two choices:
+`Type: AWS::Serverless::SimpleTable` or `Type: AWS::DynamoDB::Table`.
+`SimpleTable` gives you less control, but also requires less configuration. An
+advantage of `SimpleTable` is that we can retrieve the table name within the
+template by simply using `!Ref TableResourceName` (e.g. to pass in to lambda as
+an env var). This is not possible with `DynamoDB::Table` which only outputs the
+table ARN. We can either deconstruct this ARN to retrieve the generated table
+name, or explicitly name the table and refer to that static name (that's what we
+do in the current example).
+
+### Running locally
+
+A local DynamoDB instance is included via `docker-compose`. The configuration
+also creates a docker network, which our lambda functions will be able to
+connect to. Running `yarn dev` will run a custom script which starts the
+`dynamodb` container, and creates tables. The tables to create are parsed from
+`template.yaml`. This also happens automatically as part of the jest global
+setup script.
+
+Note that the `docker-compose.yml` file has enabled the `sharedDb` option, which
+is useful because the lambda function does not share the hosts' `AWS_PROFILE`,
+so without this option the host and containers would see different databases.
+Finally, remember that lambda functions running inside a container must
+communicate with DynamoDB through the docker network (i.e.
+`http://dynamodb:8000`) while on the host, we instead communicate through a
+host-exposed port (i.e. `http://localhost:8000`). This is controlled in our code
+through the `DYNAMO_HOST` environment variable.

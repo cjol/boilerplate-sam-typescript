@@ -22,6 +22,7 @@ Resources:
 
   Greeting:
     Type: AWS::Serverless::Function
+    DependsOn: GreetingsTable
     Properties:
       Events:
         APIWithName:
@@ -40,16 +41,45 @@ Resources:
               Ref: ApiGatewayApi
       Handler: hello.handler
       CodeUri: ./dist/hello
+      Environment:
+        Variables:
+          ## With SimpleTable the reference would be easier, but we have less control
+          # TABLE_NAME: !Ref SimpleTable
+          TABLE_NAME: !Sub ${ProjectName}-greetings-${Stage}
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - 'dynamodb:DeleteItem'
+                - 'dynamodb:GetItem'
+                - 'dynamodb:PutItem'
+                - 'dynamodb:UpdateItem'
+              Resource: !GetAtt GreetingsTable.Arn
 
-  ExampleTable:
-    TableName: !Sub ${ProjectName}-exampletable-${Stage}
-    Type: AWS::Serverless::SimpleTable
+  # SimpleTable:
+  #   TableName: !Sub ${ProjectName}-greetings-${Stage}
+  #   Type: AWS::Serverless::SimpleTable
+  #   Properties:
+  #     PrimaryKey:
+  #       Name: id
+  #       Type: String
+
+  GreetingsTable:
+    Type: AWS::DynamoDB::Table
     Properties:
-      PrimaryKey:
-        Name: id
-        Type: String
+      TableName: !Sub ${ProjectName}-greetings-${Stage}
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
 
 Outputs:
-  ExampleTableArn:
-    Description: Example Table ARN
-    Value: !GetAtt ExampleTable.Arn
+  APIEndpoint:
+    Description: 'API Endpoint'
+    Value: !Sub 'https://${ApiGatewayApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}/hello/'
