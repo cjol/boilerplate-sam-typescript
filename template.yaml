@@ -7,6 +7,8 @@ Parameters:
     Type: String
   ProjectName:
     Type: String
+  DomainName:
+    Type: String
   DeploymentBucket:
     Type: String
 
@@ -91,6 +93,24 @@ Resources:
                   - 'dynamodb:PutItem'
                   - 'dynamodb:UpdateItem'
                 Resource: !GetAtt GreetingsTable.Arn
+
+  DomainZone:
+    Type: AWS::Route53::HostedZone
+    Properties:
+      Name: !Sub sam.${DomainName}
+      HostedZoneConfig:
+        Comment: Route53-hosted zone for my app
+  DomainTXTRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name: !Sub txt.sam.${DomainName}
+      Comment: A test record set
+      Type: TXT
+      TTL: 300
+      HostedZoneId: !Ref DomainZone
+      ResourceRecords:
+        - '"my txt value goes here"'
+        - '"my 2nd txt value goes here"'
 
   DeveloperPolicy:
     Type: AWS::IAM::Policy
@@ -206,7 +226,7 @@ Resources:
               - 'apigateway:POST'
               - 'apigateway:SetWebACL'
               - 'apigateway:UpdateRestApiPolicy'
-            Resource: 
+            Resource:
               - !Sub arn:aws:apigateway:eu-west-2::/restapis/${ApiGatewayApi}
               - !Sub arn:aws:apigateway:eu-west-2::/restapis/${ApiGatewayApi}/*
 
@@ -224,3 +244,15 @@ Outputs:
   APIEndpoint:
     Description: 'API Endpoint'
     Value: !Sub 'https://${ApiGatewayApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}/hello/'
+  Nameserver1:
+    Description: 'Name Server 1'
+    Value: !Select [0, !GetAtt DomainZone.NameServers]
+  Nameserver2:
+    Description: 'Name Server 2'
+    Value: !Select [1, !GetAtt DomainZone.NameServers]
+  Nameserver3:
+    Description: 'Name Server 3'
+    Value: !Select [2, !GetAtt DomainZone.NameServers]
+  Nameserver4:
+    Description: 'Name Server 4'
+    Value: !Select [3, !GetAtt DomainZone.NameServers]
