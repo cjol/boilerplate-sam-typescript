@@ -101,3 +101,45 @@ communicate with DynamoDB through the docker network (i.e.
 `http://dynamodb:8000`) while on the host, we instead communicate through a
 host-exposed port (i.e. `http://localhost:8000`). This is controlled in our code
 through the `DYNAMO_HOST` environment variable.
+
+## Fine-grained Permissions (IAM)
+
+The project is designed to be deployed under one of two conditions:
+
+### 1. Admin User:
+
+The initial deployment should be performed by a user with full access to the AWS
+account. Before starting the deployment, the admin user should create an IAM
+user group called `SamDevelopers`. This group is referenced within the
+CloudFormation template (and could be replaced with a different name).
+
+With that done, the admin user can run `yarn deploy:prepare` and `yarn deploy`
+according to the instructions above. This will create all the required
+resources, and attach a new IAM policy to the `SamDevelopers` group.
+
+At any later point, the admin user can pull the latest code and run
+`yarn deploy`, and any new resources will be created automatically. This allows
+developers to request creation of resources without needing privileges
+themselves.
+
+### 2. Developer:
+
+Developers should not have access to create new resources. Instead, their user
+should be added to the `SamDevelopers` group above. This will grant them
+permission to:
+
+-   Upload deployment artifacts to the appropriate S3 bucket
+-   Run Cloudformation deployments (subject to per-service restrictions below)
+-   View and edit previously-created Lambda functions (and associated IAM role)
+-   Full access to the previously-created API Gateway
+-   CRUD access to the created DynamoDB table (no scan or batch, but these could
+    safely be added)
+
+Notably this does not give access to create any new resources of the above
+types. This shouldn't be a problem for most resources; the only annoying one is
+creating new Lambda functions. We could allow developers to create new Lambda
+functions, but this would also require them to be allowed to edit their own IAM
+policy (in order to allow management of the new function) which would allow
+escalation of privileges. It might be possible to restrict this with Permissions
+Boundaries or something, but for now new functions should be created by the
+admin user.

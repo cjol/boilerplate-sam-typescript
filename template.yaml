@@ -7,6 +7,8 @@ Parameters:
     Type: String
   ProjectName:
     Type: String
+  DeploymentBucket:
+    Type: String
 
 Globals:
   Function:
@@ -20,15 +22,14 @@ Resources:
     Properties:
       StageName: !Sub ${Stage}
 
-  Greeting:
+  GreetingFunction:
     Type: AWS::Serverless::Function
-    DependsOn: GreetingsTable
     Properties:
       Events:
         APIWithName:
           Type: Api
           Properties:
-            Path: /hello/byname/{name}
+            Path: /hello/{name}
             Method: get
             RestApiId:
               Ref: ApiGatewayApi
@@ -43,19 +44,8 @@ Resources:
       CodeUri: ./dist/hello
       Environment:
         Variables:
-          ## With SimpleTable the reference would be easier, but we have less control
-          # TABLE_NAME: !Ref SimpleTable
-          TABLE_NAME: !Sub ${ProjectName}-greetings-${Stage}
-      Policies:
-        - Version: '2012-10-17'
-          Statement:
-            - Effect: Allow
-              Action:
-                - 'dynamodb:DeleteItem'
-                - 'dynamodb:GetItem'
-                - 'dynamodb:PutItem'
-                - 'dynamodb:UpdateItem'
-              Resource: !GetAtt GreetingsTable.Arn
+          TABLE_NAME: !Ref GreetingsTable
+      Role: !GetAtt LambdaRole.Arn
 
   # SimpleTable:
   #   TableName: !Sub ${ProjectName}-greetings-${Stage}
@@ -64,7 +54,6 @@ Resources:
   #     PrimaryKey:
   #       Name: id
   #       Type: String
-
   GreetingsTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -78,6 +67,158 @@ Resources:
       ProvisionedThroughput:
         ReadCapacityUnits: 5
         WriteCapacityUnits: 5
+
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:
+              Service: 'lambda.amazonaws.com'
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: LambdaAccessDynamo
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'dynamodb:DescribeTable'
+                  - 'dynamodb:DeleteItem'
+                  - 'dynamodb:GetItem'
+                  - 'dynamodb:PutItem'
+                  - 'dynamodb:UpdateItem'
+                Resource: !GetAtt GreetingsTable.Arn
+
+  DeveloperPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: SamDeveloperPolicy
+      Groups:
+        - SamDevelopers
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: S3DeploymentBucket
+            Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:ListBucket
+              - s3:DeleteObject
+              - s3:PutObject
+              - s3:GetObjectAcl
+              - s3:PutObjectAcl
+            Resource:
+              - !Sub arn:aws:s3:::${DeploymentBucket}
+              - !Sub arn:aws:s3:::${DeploymentBucket}/*
+
+          - Sid: CloudFormationStack
+            Effect: Allow
+            # TODO: could probably tighten this up if necessary
+            Action:
+              - cloudformation:DescribeStackResource
+              - cloudformation:CreateChangeSet
+              - cloudformation:ContinueUpdateRollback
+              - cloudformation:DescribeStackEvents
+              - cloudformation:UpdateStack
+              - cloudformation:DescribeChangeSet
+              - cloudformation:ExecuteChangeSet
+              - cloudformation:ListStackResources
+              - cloudformation:DescribeStackResources
+              - cloudformation:SignalResource
+              - cloudformation:DescribeStacks
+              - cloudformation:DescribeStackResourceDrifts
+              - cloudformation:GetStackPolicy
+              - cloudformation:GetTemplate
+              - cloudformation:UntagResource
+              - cloudformation:CancelUpdateStack
+              - cloudformation:DetectStackDrift
+              - cloudformation:UpdateTerminationProtection
+              - cloudformation:DeleteChangeSet
+              - cloudformation:DetectStackResourceDrift
+              - cloudformation:SetStackPolicy
+              - cloudformation:GetTemplateSummary
+              - cloudformation:CreateStack
+              - cloudformation:TagResource
+              - cloudformation:ListChangeSets
+            Resource:
+              - arn:aws:cloudformation:eu-west-2:aws:transform/Serverless-2016-10-31
+              - !Ref AWS::StackId
+
+          - Sid: LambdaRoles
+            Effect: Allow
+            Action:
+              - iam:GetRole
+            Resource:
+              - !GetAtt LambdaRole.Arn
+
+          - Sid: ManageLambdaFunctions
+            Effect: Allow
+            Action:
+              # - lambda:ListFunctions
+              # - lambda:ListLayerVersions
+              # - lambda:ListLayers
+              - lambda:ListVersionsByFunction
+              - lambda:PublishVersion
+              - lambda:PublishLayerVersion
+              - lambda:GetFunction
+              - lambda:PutFunctionConcurrency
+              - lambda:GetFunctionConcurrency
+              - lambda:GetFunctionConfiguration
+              - lambda:GetAlias
+              - lambda:CreateAlias
+              - lambda:UpdateAlias
+              - lambda:DeleteAlias
+              # - lambda:ListEventSourceMappings
+              # - lambda:UpdateEventSourceMapping
+              # - lambda:GetEventSourceMapping
+              # - lambda:CreateEventSourceMapping
+              # - lambda:DeleteEventSourceMapping
+              - lambda:PutFunctionEventInvokeConfig
+              - lambda:UpdateFunctionEventInvokeConfig
+              - lambda:GetFunctionEventInvokeConfig
+              - lambda:DeleteFunctionEventInvokeConfig
+              - lambda:GetLayerVersion
+              - lambda:GetLayerVersionPolicy
+              - lambda:GetLayerVersionByArn
+              - lambda:DeleteLayerVersion
+              - lambda:GetPolicy
+              - lambda:InvokeFunction
+              - lambda:ListAliases
+              - lambda:UpdateFunctionCode
+              - lambda:UpdateFunctionConfiguration
+              - lambda:DeleteFunction
+              - lambda:RemovePermission
+              - lambda:AddPermission
+            Resource:
+              - !GetAtt GreetingFunction.Arn
+
+          - Sid: ManageAPIGateway
+            Effect: Allow
+            Action:
+              - 'apigateway:PUT'
+              - 'apigateway:DELETE'
+              - 'apigateway:GET'
+              - 'apigateway:PATCH'
+              - 'apigateway:POST'
+              - 'apigateway:SetWebACL'
+              - 'apigateway:UpdateRestApiPolicy'
+            Resource: 
+              - !Sub arn:aws:apigateway:eu-west-2::/restapis/${ApiGatewayApi}
+              - !Sub arn:aws:apigateway:eu-west-2::/restapis/${ApiGatewayApi}/*
+
+          - Sid: ManageDynamoDB
+            Effect: Allow
+            Action:
+              - 'dynamodb:DescribeTable'
+              - 'dynamodb:DeleteItem'
+              - 'dynamodb:GetItem'
+              - 'dynamodb:PutItem'
+              - 'dynamodb:UpdateItem'
+            Resource: !GetAtt GreetingsTable.Arn
 
 Outputs:
   APIEndpoint:
