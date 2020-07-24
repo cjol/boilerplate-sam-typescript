@@ -23,6 +23,23 @@ Resources:
     Type: AWS::Serverless::Api
     Properties:
       StageName: !Sub ${Stage}
+      Domain:
+        DomainName: !Sub api.${DomainName}
+        CertificateArn: !Ref DomainCertificate
+        EndpointConfiguration: REGIONAL
+        Route53:
+          HostedZoneId: !Ref DomainZone
+
+  DomainCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Sub ${DomainName}
+      DomainValidationOptions:
+        - DomainName: !Sub ${DomainName}
+          HostedZoneId: !Ref DomainZone
+      SubjectAlternativeNames:
+        - !Sub '*.${DomainName}'
+      ValidationMethod: DNS
 
   GreetingFunction:
     Type: AWS::Serverless::Function
@@ -42,8 +59,8 @@ Resources:
             Method: get
             RestApiId:
               Ref: ApiGatewayApi
-      Handler: hello.handler
-      CodeUri: ./dist/hello
+      Handler: index.handler
+      CodeUri: ./dist/handlers/hello
       Environment:
         Variables:
           TABLE_NAME: !Ref GreetingsTable
@@ -80,6 +97,8 @@ Resources:
             Principal:
               Service: 'lambda.amazonaws.com'
             Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess
       Policies:
         - PolicyName: LambdaAccessDynamo
           PolicyDocument:
@@ -97,20 +116,9 @@ Resources:
   DomainZone:
     Type: AWS::Route53::HostedZone
     Properties:
-      Name: !Sub sam.${DomainName}
+      Name: !Sub ${DomainName}
       HostedZoneConfig:
         Comment: Route53-hosted zone for my app
-  DomainTXTRecord:
-    Type: AWS::Route53::RecordSet
-    Properties:
-      Name: !Sub txt.sam.${DomainName}
-      Comment: A test record set
-      Type: TXT
-      TTL: 300
-      HostedZoneId: !Ref DomainZone
-      ResourceRecords:
-        - '"my txt value goes here"'
-        - '"my 2nd txt value goes here"'
 
   DeveloperPolicy:
     Type: AWS::IAM::Policy
@@ -243,7 +251,7 @@ Resources:
 Outputs:
   APIEndpoint:
     Description: 'API Endpoint'
-    Value: !Sub 'https://${ApiGatewayApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}/hello/'
+    Value: !Sub 'https://${DomainName}/hello/'
   Nameserver1:
     Description: 'Name Server 1'
     Value: !Select [0, !GetAtt DomainZone.NameServers]

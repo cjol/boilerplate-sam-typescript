@@ -28,7 +28,7 @@ module.exports = {
         .map((v) => ({
             // Isolate handler src filename
             handlerFile: v.Properties.Handler.split('.')[0],
-            // Build handler dst path
+            // Build handler dst path (dropping './dist')
             CodeUriDir: v.Properties.CodeUri.split('/').splice(2).join('/'),
         }))
         .reduce(
@@ -37,7 +37,7 @@ module.exports = {
                     entries,
                     // Generate {outputPath: inputPath} object
                     {
-                        [`${v.CodeUriDir}/${v.handlerFile}`]: `./src/${v.handlerFile}.ts`,
+                        [`${v.CodeUriDir}/${v.handlerFile}`]: `./src/${v.CodeUriDir}/${v.handlerFile}.ts`,
                     }
                 ),
             {}

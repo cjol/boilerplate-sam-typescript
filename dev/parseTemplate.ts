@@ -36,7 +36,7 @@ const Subbable = new t.Type<string, string, unknown>(
 const ServerlessFunction = t.type({
     Type: t.literal('AWS::Serverless::Function'),
     Properties: t.type({
-        Runtime: t.string,
+        Runtime: t.union([t.undefined, t.string]),
         Handler: t.string,
         CodeUri: t.string,
     }),
@@ -96,12 +96,16 @@ export function getTemplate(templatePath: string): CloudFormationTemplate {
         either.tryCatch(
             () => yamlParse(readFileSync(templatePath).toString()),
             // ignore validation errors for now (TODO: nicer errors)
-            () => []
+            (e) => {
+                console.error(e);
+                return []
+            }
         ),
         either.chain(CloudFormationSchema.decode)
     );
 
     if (either.isLeft(parseResult)) {
+        console.log(parseResult.left)
         throw new Error('Unable to parse yaml');
     }
     return parseResult.right;

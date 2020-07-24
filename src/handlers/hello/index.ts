@@ -1,5 +1,5 @@
 import { APIGatewayProxyHandlerV2 } from 'aws-lambda';
-import { getItem, putItem } from './services/dynamodb';
+import { getItem, putItem } from '../../services/dynamodb';
 
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     const name = event.pathParameters?.name || 'World';
